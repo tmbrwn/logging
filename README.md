@@ -57,3 +57,17 @@ func main() {
     // {"time":"2:22pm","pid":12345,"error":"file does not exist","message":"could not read file"}
 }
 ```
+
+## API
+| Logger Method | Usage                                                                       |
+|---------------|-----------------------------------------------------------------------------|
+| `Print`       | Messages that a user should be concerned with                               |
+| `Debug`       | Messages that are too verbose or too numerous to be useful unless debugging |
+
+| Chained Method                   | Description                                                                      |
+|----------------------------------|----------------------------------------------------------------------------------|
+| `Str(key, val string)`           | Tags log with a `string`                                                         |
+| `Int(key string, val int)`       | Tags log with an `int`                                                           |
+| `Float(key string, val float64)` | Tags log with a `float64`                                                        |
+| `Err(err error)`                 | Adds an "error" tag to the log with the given `error`                            |
+| `Msg(msg string)`                | Adds the given (`string`) "message" to the log. Must be called last in the chain |
