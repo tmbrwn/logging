@@ -25,6 +25,17 @@ var (
 	red    = color.New(color.FgRed)
 )
 
+// global default DefaultLogger
+var DefaultLogger = Logger{}
+
+func Print() *log {
+	return DefaultLogger.Print()
+}
+
+func Debug() *log {
+	return DefaultLogger.Debug()
+}
+
 // Logger is used to log messages. Multiple loggers could be used within a project
 // if fine-grained control over debug levels is desired
 type Logger struct {
