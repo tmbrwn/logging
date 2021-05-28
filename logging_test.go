@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"errors"
@@ -141,7 +141,7 @@ func TestPrettyPrintMsg(t *testing.T) {
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
-	
+
 	color.NoColor = false
 }
 
@@ -187,7 +187,7 @@ func TestPrettyPrintNoTags(t *testing.T) {
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
-	
+
 	color.NoColor = false
 }
 
