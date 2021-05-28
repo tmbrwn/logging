@@ -128,13 +128,22 @@ func (l *log) Err(err error) *log {
 
 // Msg creates a message with the given content and with any tags previously specified
 func (l *log) Msg(msg string) {
+	l.msgf(msg)
+}
+
+// Msgf creates a message with the given format and content and with any tags previously specified
+func (l *log) Msgf(format string, args ...interface{}) {
+	l.msgf(format, args...)
+}
+
+func (l *log) msgf(format string, args ...interface{}) {
 	if l.isDebug && !l.logger.EnableDebug {
 		return
 	}
 
 	msgCtx := ctx{
 		key:      "message",
-		val:      msg,
+		val:      fmt.Sprintf(format, args...),
 		isString: true,
 	}
 	l.buffer = append(l.buffer, msgCtx)

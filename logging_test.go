@@ -27,6 +27,38 @@ func TestPrintMsg(t *testing.T) {
 	}
 }
 
+func TestPrintMsgf(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = false
+	Output = output
+	l := Logger{
+		EnableDebug: false,
+	}
+
+	l.Print().Msgf("now i have %d fingers", 2)
+
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"now i have 2 fingers"}` + "\n"
+	if !equals(output.content, expectedLog) {
+		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+}
+
+func TestGlobalPrintMsg(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = false
+	Output = output
+	DefaultLogger = Logger{}
+
+	Print().Msg("hello")
+
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
+	if !equals(output.content, expectedLog) {
+		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+}
+
 func TestDebugMsgNoDebug(t *testing.T) {
 	output := &logout{}
 	Clock = clockAt("2020-02-02T02:02:02Z")
@@ -57,6 +89,37 @@ func TestDebugMsg(t *testing.T) {
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+}
+
+func TestGlobalDebugMsg(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = false
+	Output = output
+	DefaultLogger = Logger{
+		EnableDebug: true,
+	}
+
+	Debug().Msg("hello")
+
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
+	if !equals(output.content, expectedLog) {
+		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+}
+
+func TestGlobalDebugMsgNoDebug(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = false
+	Output = output
+	DefaultLogger = Logger{}
+
+	Debug().Msg("hello")
+
+	if !equals(output.content, "") {
+		t.Errorf(`expected empty output but got "%s"`, output.content)
 	}
 }
 
