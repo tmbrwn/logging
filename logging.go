@@ -31,7 +31,7 @@ var (
 // PACKAGE-LEVEL LOGGING //////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-// global default logger
+// DefaultLogger is a package-level logger ready to use
 var DefaultLogger = Logger{}
 
 func Tag(key string, val interface{}) *log {

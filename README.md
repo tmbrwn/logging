@@ -18,6 +18,8 @@ _Anyone is welcome to use this package, but it is primarily designed for my own 
 ## Using the package
 Using the package starts with creating a `logging.Logger`. Loggers can be shared between as many or as few parts of an application as desired, and Debug level logging can be configured wherever a Logger is kept.
 
+A package-level default logger has been defined along with package-level logging functions for convenience.
+
 Global settings among Loggers have the following defaults:
 ```go
 var Output io.Writer = os.Stdout     // Output to use for logging
@@ -32,42 +34,41 @@ These parameters should be adjusted once on initialization. They have no thread-
 ```go
 package main
 
-import "github.com/tmbrwn/logging"
+import (
+	"errors"
+
+	"github.com/tmbrwn/logging"
+)
 
 func main() {
-	logging.DateTimeFormat = "3:45pm"
+	logging.DateTimeFormat = "3:04pm"
 
 	log := logging.Logger{
 		EnableDebug: true,
 	}
 
-	log.Print().
-		Str("service", "api").
-		Msg("initialized")
-    // {"time":"2:22pm","service":"api","message":"initialized"}
+	log.Print("starting up")
+	// {"time":"2:22pm","message":"attempting request","caller":"main.go:20"}
 
-	log.Debug().
-		Msg("attempting request")
-    // {"time":"2:22pm","message":"attempting request"}
+	l := log.Tag("request-id", "abc123").Logger()
 
-	err := errors.New("couldn't read from file")
-	log.Print().
-		Err(err).
-		Msg("read")
-    // {"time":"2:22pm","pid":12345,"error":"file does not exist","message":"could not read file"}
+	l.Debug("received request")
+	// {"time":"2:22pm","message":"received request","caller":"main.go:17","request-id":"abc123",}
+
+	err := errors.New("file does not exist")
+	l.Err(err).Print("could not read file")
+	// {"time":"2:22pm","message":"could not read file","caller":"main.go:26","request-id":"abc123","error":"file does not exist"}
 }
 ```
 
 ## API
-| Logger Method | Usage                                                                       |
-|---------------|-----------------------------------------------------------------------------|
-| `Print`       | Messages that a user should be concerned with                               |
-| `Debug`       | Messages that are too verbose or too numerous to be useful unless debugging |
+The following methods can be used at the package level or on an individual `Logger` value.
 
-| Chained Method                   | Description                                                                      |
-|----------------------------------|----------------------------------------------------------------------------------|
-| `Str(key, val string)`           | Tags log with a `string`                                                         |
-| `Int(key string, val int)`       | Tags log with an `int`                                                           |
-| `Float(key string, val float64)` | Tags log with a `float64`                                                        |
-| `Err(err error)`                 | Adds an "error" tag to the log with the given `error`                            |
-| `Msg(msg string)`                | Adds the given (`string`) "message" to the log. Must be called last in the chain |
+
+| Method           | Usage                                                                       |
+|------------------|-----------------------------------------------------------------------------|
+| `Print`/`Printf` | Messages that a user should be concerned with                               |
+| `Debug`/`Debugf` | Messages that are too verbose or too numerous to be useful unless debugging |
+| `Tag`            | Give a key-value tag to a message                                           |
+| `Err`            | Short for `Tag("error", err)`                                               |
+| `Logger`         | Save the tags defined so far in a separate logger value                     |
