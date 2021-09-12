@@ -1,10 +1,11 @@
 package logging
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,178 +26,235 @@ var (
 	red    = color.New(color.FgRed)
 )
 
-// global default DefaultLogger
+///////////////////////////////////////////////////////////////////////////////
+// PACKAGE-LEVEL LOGGING //////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+// global default logger
 var DefaultLogger = Logger{}
 
-func Print() *log {
-	return DefaultLogger.Print()
+func Tag(key string, val interface{}) *log {
+	return DefaultLogger.Tag(key, val)
 }
 
-func Debug() *log {
-	return DefaultLogger.Debug()
+func Err(err error) *log {
+	return DefaultLogger.Err(err)
 }
+
+// Print logs a message to the output
+func Print(a ...interface{}) {
+	printLog(DefaultLogger.tags, fmt.Sprint(a...))
+}
+
+// Printf logs a message to the output
+func Printf(format string, a ...interface{}) {
+	printLog(DefaultLogger.tags, fmt.Sprintf(format, a...))
+}
+
+// Debug only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func Debug(a ...interface{}) {
+	if DefaultLogger.EnableDebug {
+		printLog(DefaultLogger.tags, fmt.Sprint(a...))
+	}
+}
+
+// Debugf only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func Debugf(format string, a ...interface{}) {
+	if DefaultLogger.EnableDebug {
+		printLog(DefaultLogger.tags, fmt.Sprintf(format, a...))
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// LOGGER-LEVEL LOGGING ///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 // Logger is used to log messages. Multiple loggers could be used within a project
 // if fine-grained control over debug levels is desired
 type Logger struct {
 	EnableDebug bool
+	tags        []tag
 }
 
-// Print will always print the resulting message to the output
-func (l *Logger) Print() *log {
+// Tag associates the given key with the given value in
+// the resulting message's tags
+func (l *Logger) Tag(key string, val interface{}) *log {
 	return &log{
-		logger:  l,
-		isDebug: false,
+		enableDebug: l.EnableDebug,
+		tags:        append(l.tags, tag{key, val}),
 	}
 }
 
-// Debug only prints the resulting message to the output if the EnableDebug
-// is set to true on the Logger
-func (l *Logger) Debug() *log {
+// Err is short for Tag("error", err)
+func (l *Logger) Err(err error) *log {
 	return &log{
-		logger:  l,
-		isDebug: true,
+		enableDebug: l.EnableDebug,
+		tags:        append(l.tags, tag{"error", err}),
+	}
+}
+
+// Print logs a message to the output
+func (l *Logger) Print(a ...interface{}) {
+	printLog(l.tags, fmt.Sprint(a...))
+}
+
+// Printf logs a message to the output
+func (l *Logger) Printf(format string, a ...interface{}) {
+	printLog(l.tags, fmt.Sprintf(format, a...))
+}
+
+// Debug only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func (l *Logger) Debug(a ...interface{}) {
+	if l.EnableDebug {
+		printLog(l.tags, fmt.Sprint(a...))
+	}
+}
+
+// Debugf only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func (l *Logger) Debugf(format string, a ...interface{}) {
+	if l.EnableDebug {
+		printLog(l.tags, fmt.Sprintf(format, a...))
 	}
 }
 
 type log struct {
-	logger  *Logger
-	isDebug bool
-	buffer  []ctx
+	enableDebug bool
+	tags        []tag
 }
 
-type ctx struct {
-	key      string
-	val      string
-	isString bool
+type tag struct {
+	key string
+	val interface{}
 }
 
-// Str attaches a string tag to the log
-func (l *log) Str(key, val string) *log {
-	newCtx := ctx{
-		key:      key,
-		val:      val,
-		isString: true,
+// Logger returns a logger with all the tags defined so far
+func (l *log) Logger() *Logger {
+	return &Logger{
+		EnableDebug: l.enableDebug,
+		tags:        l.tags,
 	}
-	l.buffer = append(l.buffer, newCtx)
+}
+
+// Tag associates the given key with the given value in
+// the resulting message's tags
+func (l *log) Tag(key string, val interface{}) *log {
+	l.tags = append(l.tags, tag{key, val})
 	return l
 }
 
-// Int attaches an int tag to the log
-func (l *log) Int(key string, val int) *log {
-	newCtx := ctx{
-		key: key,
-		val: fmt.Sprintf("%d", val),
-	}
-	l.buffer = append(l.buffer, newCtx)
-	return l
-}
-
-// Float attaches a float tag to the log
-func (l *log) Float(key string, val float64) *log {
-	newCtx := ctx{
-		key: key,
-		val: strconv.FormatFloat(val, 'f', -1, 64),
-	}
-	l.buffer = append(l.buffer, newCtx)
-	return l
-}
-
-// Err attaches an error tag to the log
+// Err is short for Tag("error", err)
 func (l *log) Err(err error) *log {
-	newCtx := ctx{
-		key:      "error",
-		val:      err.Error(),
-		isString: true,
-	}
-	l.buffer = append(l.buffer, newCtx)
+	l.tags = append(l.tags, tag{"error", err})
 	return l
 }
 
-// sub-loggers should really be implemented with a separate chain of context types which are only turned
-// into a Logger at the very end:
-// logger.With().Str("tag", "value").Logger().Print()...
-// func (l *log) Logger() Logger {
-// 	return Logger{
-// 		EnableDebug: l.logger.EnableDebug,
-// 		Output:      l.logger.Output,
-// 		Pretty:      l.logger.Pretty,
-
-// 		currentLog: l,
-// 	}
-// }
-
-// Msg creates a message with the given content and with any tags previously specified
-func (l *log) Msg(msg string) {
-	l.msgf(msg)
+// Print logs a message to the output
+func (l *log) Print(a ...interface{}) {
+	printLog(l.tags, fmt.Sprint(a...))
 }
 
-// Msgf creates a message with the given format and content and with any tags previously specified
-func (l *log) Msgf(format string, args ...interface{}) {
-	l.msgf(format, args...)
+// Printf logs a message to the output
+func (l *log) Printf(format string, a ...interface{}) {
+	printLog(l.tags, fmt.Sprintf(format, a...))
 }
 
-func (l *log) msgf(format string, args ...interface{}) {
-	if l.isDebug && !l.logger.EnableDebug {
-		return
+// Debug only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func (l *log) Debug(a ...interface{}) {
+	if l.enableDebug {
+		printLog(l.tags, fmt.Sprint(a...))
 	}
+}
 
-	msgCtx := ctx{
-		key:      "message",
-		val:      fmt.Sprintf(format, args...),
-		isString: true,
+// Debugf only logs a message to the output if the EnableDebug
+// is set to true on the Logger
+func (l *log) Debugf(format string, a ...interface{}) {
+	if l.enableDebug {
+		printLog(l.tags, fmt.Sprintf(format, a...))
 	}
-	l.buffer = append(l.buffer, msgCtx)
+}
 
+///////////////////////////////////////////////////////////////////////////////
+// OUTPUT FORMATTING //////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+func printLog(tags []tag, msg string) {
 	if Pretty {
-		printLogPretty(l.buffer)
+		printLogPretty(tags, msg)
 	} else {
-		printLog(l.buffer)
+		printLogJSON(tags, msg)
 	}
 }
 
-func printLog(buffer []ctx) {
+func printLogJSON(tags []tag, msg string) {
 	now := Clock.Now().Format(DateTimeFormat)
-	formattedCtx := []string{fmt.Sprintf(`"time":"%s"`, now)}
-	for _, item := range buffer {
-		var formattedItem string
-		if item.isString {
-			formattedItem = fmt.Sprintf(`"%s":"%s"`, item.key, item.val)
-		} else {
-			formattedItem = fmt.Sprintf(`"%s":%s`, item.key, item.val)
-		}
-		formattedCtx = append(formattedCtx, formattedItem)
+
+	caller := "unknown"
+	// skip 3: printLogJSON, printLog, and public caller thereof
+	_, fileName, lineNum, ok := runtime.Caller(3)
+	if ok {
+		caller = fmt.Sprintf("%s:%d", fileName, lineNum)
 	}
 
-	fmt.Fprintf(Output, "{%s}\n", strings.Join(formattedCtx, ","))
+	logComponents := []string{
+		fmt.Sprintf(`"time":"%s"`, now),
+		fmt.Sprintf(`"message":"%s"`, msg),
+		fmt.Sprintf(`"caller":"%s"`, caller),
+	}
+	for _, t := range tags {
+		val := `"<?>"`
+		switch t.val.(type) {
+		case error:
+			val = fmt.Sprintf(`"%s"`, t.val)
+		default:
+			marshaled, err := json.Marshal(t.val)
+			if err == nil {
+				val = string(marshaled)
+			}
+		}
+
+		logComponents = append(logComponents, fmt.Sprintf(`"%s":%s`, t.key, val))
+	}
+
+	fmt.Fprintf(Output, "{%s}\n", strings.Join(logComponents, ","))
 }
 
-func printLogPretty(buffer []ctx) {
-	var msg string
-	var tags []string
-	for _, item := range buffer {
-		if item.key == "message" {
-			msg = item.val
-			continue
-		}
-
-		if item.key == "error" {
-			tags = append(tags, red.Sprintf("error=%s", item.val))
-			continue
-		}
-
-		tagKey := soft.Sprintf("%s=", item.key)
-		tagVal := bright.Sprint(item.val)
-		tags = append(tags, tagKey+tagVal)
-	}
-
+func printLogPretty(tags []tag, msg string) {
 	if msg == "" {
 		msg = "_"
 	}
 
 	now := Clock.Now().Format(DateTimeFormat)
 
-	logComponents := []string{soft.Sprint(now), bright.Sprint(msg)}
-	logComponents = append(logComponents, tags...)
+	caller := "unknown"
+	// skip 3: printLogJSON, printLog, and public caller thereof
+	_, fileName, lineNum, ok := runtime.Caller(3)
+	if ok {
+		caller = fmt.Sprintf("%s:%d", fileName, lineNum)
+	}
+
+	logComponents := []string{
+		soft.Sprint(now),
+		bright.Sprint(msg),
+		soft.Sprintf("(%s)", caller),
+	}
+
+	for _, t := range tags {
+		var val string
+		switch t.val.(type) {
+		case error:
+			val = red.Sprint(t.val)
+		default:
+			val = bright.Sprint(t.val)
+		}
+
+		key := soft.Sprintf("%s=", t.key)
+		logComponents = append(logComponents, key+val)
+	}
+
 	fmt.Fprintln(Output, strings.Join(logComponents, " "))
 }
