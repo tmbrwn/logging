@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -203,7 +204,7 @@ func printLogJSON(tags []tag, msg string, debugEnabled bool) {
 		// skip 3: printLogJSON, printLog, and public caller thereof
 		_, fileName, lineNum, ok := runtime.Caller(3)
 		if ok {
-			caller = fmt.Sprintf("%s:%d", fileName, lineNum)
+			caller = fmt.Sprintf("%s:%d", filepath.Base(fileName), lineNum)
 		}
 
 		logComponents = append(logComponents, fmt.Sprintf(`"caller":"%s"`, caller))
@@ -244,7 +245,7 @@ func printLogPretty(tags []tag, msg string, debugEnabled bool) {
 		// skip 3: printLogJSON, printLog, and public caller thereof
 		_, fileName, lineNum, ok := runtime.Caller(3)
 		if ok {
-			caller = fmt.Sprintf("%s:%d", fileName, lineNum)
+			caller = fmt.Sprintf("%s:%d", filepath.Base(fileName), lineNum)
 		}
 
 		logComponents = append(logComponents, soft.Sprintf("(%s)", caller))
