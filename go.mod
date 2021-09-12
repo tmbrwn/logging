@@ -1,4 +1,4 @@
-module github.com/tmbrwn/logging
+module github.com/tmbrwn/logging/v2
 
 go 1.16
 
