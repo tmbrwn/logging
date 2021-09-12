@@ -43,19 +43,19 @@ func Err(err error) *log {
 
 // Print logs a message to the output
 func Print(a ...interface{}) {
-	printLog(DefaultLogger.tags, fmt.Sprint(a...))
+	printLog(DefaultLogger.tags, fmt.Sprint(a...), DefaultLogger.EnableDebug)
 }
 
 // Printf logs a message to the output
 func Printf(format string, a ...interface{}) {
-	printLog(DefaultLogger.tags, fmt.Sprintf(format, a...))
+	printLog(DefaultLogger.tags, fmt.Sprintf(format, a...), DefaultLogger.EnableDebug)
 }
 
 // Debug only logs a message to the output if the EnableDebug
 // is set to true on the Logger
 func Debug(a ...interface{}) {
 	if DefaultLogger.EnableDebug {
-		printLog(DefaultLogger.tags, fmt.Sprint(a...))
+		printLog(DefaultLogger.tags, fmt.Sprint(a...), DefaultLogger.EnableDebug)
 	}
 }
 
@@ -63,7 +63,7 @@ func Debug(a ...interface{}) {
 // is set to true on the Logger
 func Debugf(format string, a ...interface{}) {
 	if DefaultLogger.EnableDebug {
-		printLog(DefaultLogger.tags, fmt.Sprintf(format, a...))
+		printLog(DefaultLogger.tags, fmt.Sprintf(format, a...), DefaultLogger.EnableDebug)
 	}
 }
 
@@ -97,19 +97,19 @@ func (l *Logger) Err(err error) *log {
 
 // Print logs a message to the output
 func (l *Logger) Print(a ...interface{}) {
-	printLog(l.tags, fmt.Sprint(a...))
+	printLog(l.tags, fmt.Sprint(a...), l.EnableDebug)
 }
 
 // Printf logs a message to the output
 func (l *Logger) Printf(format string, a ...interface{}) {
-	printLog(l.tags, fmt.Sprintf(format, a...))
+	printLog(l.tags, fmt.Sprintf(format, a...), l.EnableDebug)
 }
 
 // Debug only logs a message to the output if the EnableDebug
 // is set to true on the Logger
 func (l *Logger) Debug(a ...interface{}) {
 	if l.EnableDebug {
-		printLog(l.tags, fmt.Sprint(a...))
+		printLog(l.tags, fmt.Sprint(a...), l.EnableDebug)
 	}
 }
 
@@ -117,7 +117,7 @@ func (l *Logger) Debug(a ...interface{}) {
 // is set to true on the Logger
 func (l *Logger) Debugf(format string, a ...interface{}) {
 	if l.EnableDebug {
-		printLog(l.tags, fmt.Sprintf(format, a...))
+		printLog(l.tags, fmt.Sprintf(format, a...), l.EnableDebug)
 	}
 }
 
@@ -154,19 +154,19 @@ func (l *log) Err(err error) *log {
 
 // Print logs a message to the output
 func (l *log) Print(a ...interface{}) {
-	printLog(l.tags, fmt.Sprint(a...))
+	printLog(l.tags, fmt.Sprint(a...), l.enableDebug)
 }
 
 // Printf logs a message to the output
 func (l *log) Printf(format string, a ...interface{}) {
-	printLog(l.tags, fmt.Sprintf(format, a...))
+	printLog(l.tags, fmt.Sprintf(format, a...), l.enableDebug)
 }
 
 // Debug only logs a message to the output if the EnableDebug
 // is set to true on the Logger
 func (l *log) Debug(a ...interface{}) {
 	if l.enableDebug {
-		printLog(l.tags, fmt.Sprint(a...))
+		printLog(l.tags, fmt.Sprint(a...), l.enableDebug)
 	}
 }
 
@@ -174,7 +174,7 @@ func (l *log) Debug(a ...interface{}) {
 // is set to true on the Logger
 func (l *log) Debugf(format string, a ...interface{}) {
 	if l.enableDebug {
-		printLog(l.tags, fmt.Sprintf(format, a...))
+		printLog(l.tags, fmt.Sprintf(format, a...), l.enableDebug)
 	}
 }
 
@@ -182,29 +182,33 @@ func (l *log) Debugf(format string, a ...interface{}) {
 // OUTPUT FORMATTING //////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-func printLog(tags []tag, msg string) {
+func printLog(tags []tag, msg string, debugEnabled bool) {
 	if Pretty {
-		printLogPretty(tags, msg)
+		printLogPretty(tags, msg, debugEnabled)
 	} else {
-		printLogJSON(tags, msg)
+		printLogJSON(tags, msg, debugEnabled)
 	}
 }
 
-func printLogJSON(tags []tag, msg string) {
+func printLogJSON(tags []tag, msg string, debugEnabled bool) {
 	now := Clock.Now().Format(DateTimeFormat)
-
-	caller := "unknown"
-	// skip 3: printLogJSON, printLog, and public caller thereof
-	_, fileName, lineNum, ok := runtime.Caller(3)
-	if ok {
-		caller = fmt.Sprintf("%s:%d", fileName, lineNum)
-	}
 
 	logComponents := []string{
 		fmt.Sprintf(`"time":"%s"`, now),
 		fmt.Sprintf(`"message":"%s"`, msg),
-		fmt.Sprintf(`"caller":"%s"`, caller),
 	}
+
+	if debugEnabled {
+		caller := "unknown"
+		// skip 3: printLogJSON, printLog, and public caller thereof
+		_, fileName, lineNum, ok := runtime.Caller(3)
+		if ok {
+			caller = fmt.Sprintf("%s:%d", fileName, lineNum)
+		}
+
+		logComponents = append(logComponents, fmt.Sprintf(`"caller":"%s"`, caller))
+	}
+
 	for _, t := range tags {
 		val := `"<?>"`
 		switch t.val.(type) {
@@ -223,24 +227,27 @@ func printLogJSON(tags []tag, msg string) {
 	fmt.Fprintf(Output, "{%s}\n", strings.Join(logComponents, ","))
 }
 
-func printLogPretty(tags []tag, msg string) {
+func printLogPretty(tags []tag, msg string, debugEnabled bool) {
 	if msg == "" {
 		msg = "_"
 	}
 
 	now := Clock.Now().Format(DateTimeFormat)
 
-	caller := "unknown"
-	// skip 3: printLogJSON, printLog, and public caller thereof
-	_, fileName, lineNum, ok := runtime.Caller(3)
-	if ok {
-		caller = fmt.Sprintf("%s:%d", fileName, lineNum)
-	}
-
 	logComponents := []string{
 		soft.Sprint(now),
 		bright.Sprint(msg),
-		soft.Sprintf("(%s)", caller),
+	}
+
+	if debugEnabled {
+		caller := "unknown"
+		// skip 3: printLogJSON, printLog, and public caller thereof
+		_, fileName, lineNum, ok := runtime.Caller(3)
+		if ok {
+			caller = fmt.Sprintf("%s:%d", fileName, lineNum)
+		}
+
+		logComponents = append(logComponents, soft.Sprintf("(%s)", caller))
 	}
 
 	for _, t := range tags {

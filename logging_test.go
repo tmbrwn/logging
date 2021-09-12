@@ -3,6 +3,7 @@ package logging
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ func TestPrintMsg(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Print().Msg("hello")
+	l.Print("hello")
 
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
 	if !equals(output.content, expectedLog) {
@@ -36,7 +37,7 @@ func TestPrintMsgf(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Print().Msgf("now i have %d fingers", 2)
+	l.Printf("now i have %d fingers", 2)
 
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"now i have 2 fingers"}` + "\n"
 	if !equals(output.content, expectedLog) {
@@ -51,7 +52,7 @@ func TestGlobalPrintMsg(t *testing.T) {
 	Output = output
 	DefaultLogger = Logger{}
 
-	Print().Msg("hello")
+	Print("hello")
 
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
 	if !equals(output.content, expectedLog) {
@@ -68,7 +69,7 @@ func TestDebugMsgNoDebug(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Debug().Msg("hello")
+	l.Debug("hello")
 
 	if !equals(output.content, "") {
 		t.Errorf(`expected empty output but got "%s"`, output.content)
@@ -84,9 +85,9 @@ func TestDebugMsg(t *testing.T) {
 		EnableDebug: true,
 	}
 
-	l.Debug().Msg("hello")
+	l.Debug("hello")
 
-	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","caller":".*"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -101,9 +102,9 @@ func TestGlobalDebugMsg(t *testing.T) {
 		EnableDebug: true,
 	}
 
-	Debug().Msg("hello")
+	Debug("hello")
 
-	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello"}` + "\n"
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","caller":".*"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -116,7 +117,7 @@ func TestGlobalDebugMsgNoDebug(t *testing.T) {
 	Output = output
 	DefaultLogger = Logger{}
 
-	Debug().Msg("hello")
+	Debug("hello")
 
 	if !equals(output.content, "") {
 		t.Errorf(`expected empty output but got "%s"`, output.content)
@@ -132,11 +133,9 @@ func TestPrintTaggedMsg(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Print().
-		Str("service", "hello-service").
-		Msg("hello")
+	l.Tag("service", "hello-service").Print("hello")
 
-	expectedLog := `{"time":"2020-02-02T02:02:02Z","service":"hello-service","message":"hello"}` + "\n"
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","service":"hello-service"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -151,12 +150,12 @@ func TestPrintMultiTaggedMsg(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Print().
-		Str("service", "hello-service").
-		Str("service", "same-tag").
-		Msg("hello")
+	l.
+		Tag("service", "hello-service").
+		Tag("service", "same-tag").
+		Print("hello")
 
-	expectedLog := `{"time":"2020-02-02T02:02:02Z","service":"hello-service","service":"same-tag","message":"hello"}` + "\n"
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","service":"hello-service","service":"same-tag"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -171,14 +170,14 @@ func TestPrintAllTaggedMsg(t *testing.T) {
 		EnableDebug: false,
 	}
 
-	l.Print().
-		Str("service", "hello-service").
-		Int("items", 12).
-		Float("pi", 3.14).
+	l.
+		Tag("service", "hello-service").
+		Tag("items", 12).
+		Tag("pi", 3.14).
 		Err(errors.New("something happened")).
-		Msg("hello")
+		Print("hello")
 
-	expectedLog := `{"time":"2020-02-02T02:02:02Z","service":"hello-service","items":12,"pi":3.14,"error":"something happened","message":"hello"}` + "\n"
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","service":"hello-service","items":12,"pi":3.14,"error":"something happened"}` + "\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -195,10 +194,10 @@ func TestPrettyPrintMsg(t *testing.T) {
 
 	color.NoColor = true
 
-	l.Print().
-		Str("service", "hello-service").
+	l.
+		Tag("service", "hello-service").
 		Err(errors.New("couldn't say hello")).
-		Msg("hello")
+		Print("hello")
 
 	expectedLog := "2020-02-02T02:02:02Z hello service=hello-service error=couldn't say hello\n"
 	if !equals(output.content, expectedLog) {
@@ -219,10 +218,10 @@ func TestPrettyPrintEmptyMessage(t *testing.T) {
 
 	color.NoColor = true
 
-	l.Print().
-		Str("service", "hello-service").
+	l.
+		Tag("service", "hello-service").
 		Err(errors.New("couldn't say hello")).
-		Msg("")
+		Print("")
 
 	expectedLog := "2020-02-02T02:02:02Z _ service=hello-service error=couldn't say hello\n"
 	if !equals(output.content, expectedLog) {
@@ -243,10 +242,30 @@ func TestPrettyPrintNoTags(t *testing.T) {
 
 	color.NoColor = true
 
-	l.Print().
-		Msg("hello")
+	l.Print("hello")
 
 	expectedLog := "2020-02-02T02:02:02Z hello\n"
+	if !equals(output.content, expectedLog) {
+		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+
+	color.NoColor = false
+}
+
+func TestPrettyPrintDebug(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = true
+	Output = output
+	l := Logger{
+		EnableDebug: true,
+	}
+
+	color.NoColor = true
+
+	l.Print("hello")
+
+	expectedLog := "2020-02-02T02:02:02Z hello (.*)\n"
 	if !equals(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
@@ -273,26 +292,29 @@ func (l *logout) Write(p []byte) (int, error) {
 }
 
 func equals(a []byte, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
+	regex := fmt.Sprintf("^%s$", b)
+	matched, err := regexp.Match(regex, a)
+	return matched && err == nil
 }
 
 func TestEquals(t *testing.T) {
-	a := []byte("hello")
-	b := "hello"
+	t.Run("no regex", func(t *testing.T) {
+		a := []byte("hello")
+		b := "hello"
 
-	if !equals(a, b) {
-		t.Error("equals not equal")
-	}
+		if !equals(a, b) {
+			t.Error("equals not equal")
+		}
+	})
+
+	t.Run("regex", func(t *testing.T) {
+		a := []byte("hi, Arthur")
+		b := "hi, .*"
+
+		if !equals(a, b) {
+			t.Error("equals not equal over regex")
+		}
+	})
 }
 
 func TestLogout(t *testing.T) {
