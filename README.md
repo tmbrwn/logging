@@ -1,3 +1,6 @@
+# RETRACTED VERSION
+This version of the library, as well as others specified in [`go.mod`](go.mod) has been retracted due to versioning mistakes.
+
 # logging
 A simple structured-logging library with a chaining API
 
