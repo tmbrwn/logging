@@ -194,13 +194,18 @@ func printLog(tags []tag, msg string, debugEnabled bool) {
 func printLogJSON(tags []tag, msg string, debugEnabled bool) {
 	now := Clock.Now().Format(DateTimeFormat)
 
+	jsonMsg, err := json.Marshal(msg)
+	if err != nil {
+		jsonMsg = []byte("<?>")
+	}
+
 	logComponents := []string{
 		fmt.Sprintf(`"time":"%s"`, now),
-		fmt.Sprintf(`"message":"%s"`, msg),
+		fmt.Sprintf(`"message":%s`, jsonMsg),
 	}
 
 	if debugEnabled {
-		caller := "unknown"
+		caller := "<?>"
 		// skip 3: printLogJSON, printLog, and public caller thereof
 		_, fileName, lineNum, ok := runtime.Caller(3)
 		if ok {
@@ -241,7 +246,7 @@ func printLogPretty(tags []tag, msg string, debugEnabled bool) {
 	}
 
 	if debugEnabled {
-		caller := "unknown"
+		caller := "<?>"
 		// skip 3: printLogJSON, printLog, and public caller thereof
 		_, fileName, lineNum, ok := runtime.Caller(3)
 		if ok {
