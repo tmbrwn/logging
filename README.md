@@ -48,7 +48,7 @@ func main() {
 	}
 
 	log.Print("starting up")
-	// {"time":"2:22pm","message":"attempting request","caller":"main.go:20"}
+	// {"time":"2:22pm","message":"starting up","caller":"main.go:20"}
 
 	l := log.Tag("request-id", "abc123").Logger()
 
