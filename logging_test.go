@@ -28,6 +28,23 @@ func TestPrintMsg(t *testing.T) {
 	}
 }
 
+func TestPrintMsgEscapedChars(t *testing.T) {
+	output := &logout{}
+	Clock = clockAt("2020-02-02T02:02:02Z")
+	Pretty = false
+	Output = output
+	l := Logger{
+		EnableDebug: false,
+	}
+
+	l.Tag("tag", `"blah\ "`).Err(errors.New(`"blargh\n "`)).Print(`"blergh \"`)
+
+	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"\"blergh \\\"","tag":"\"blah\\ \"","error":"\"blargh\\n \""}` + "\n"
+	if !equals(output.content, expectedLog) {
+		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
+	}
+}
+
 func TestPrintMsgf(t *testing.T) {
 	output := &logout{}
 	Clock = clockAt("2020-02-02T02:02:02Z")
@@ -88,7 +105,7 @@ func TestDebugMsg(t *testing.T) {
 	l.Debug("hello")
 
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","caller":".*"}` + "\n"
-	if !equals(output.content, expectedLog) {
+	if !equalsRegex(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
 }
@@ -105,7 +122,7 @@ func TestGlobalDebugMsg(t *testing.T) {
 	Debug("hello")
 
 	expectedLog := `{"time":"2020-02-02T02:02:02Z","message":"hello","caller":".*"}` + "\n"
-	if !equals(output.content, expectedLog) {
+	if !equalsRegex(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
 }
@@ -266,7 +283,7 @@ func TestPrettyPrintDebug(t *testing.T) {
 	l.Print("hello")
 
 	expectedLog := "2020-02-02T02:02:02Z hello (.*)\n"
-	if !equals(output.content, expectedLog) {
+	if !equalsRegex(output.content, expectedLog) {
 		t.Errorf(`expected "%s" but got "%s"`, expectedLog, output.content)
 	}
 
@@ -291,30 +308,34 @@ func (l *logout) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func equals(a []byte, b string) bool {
-	regex := fmt.Sprintf("^%s$", b)
-	matched, err := regexp.Match(regex, a)
+func equals(actual []byte, expected string) bool {
+	regex := fmt.Sprintf("^%s$", regexp.QuoteMeta(expected))
+	matched, err := regexp.Match(regex, actual)
+	return matched && err == nil
+}
+
+func equalsRegex(actual []byte, expected string) bool {
+	regex := fmt.Sprintf("^%s$", expected)
+	matched, err := regexp.Match(regex, actual)
 	return matched && err == nil
 }
 
 func TestEquals(t *testing.T) {
-	t.Run("no regex", func(t *testing.T) {
-		a := []byte("hello")
-		b := "hello"
+	a := []byte(`"hello\ world"`)
+	b := `"hello\ world"`
 
-		if !equals(a, b) {
-			t.Error("equals not equal")
-		}
-	})
+	if !equals(a, b) {
+		t.Errorf(`"%s" not equal "%s"`, a, b)
+	}
+}
 
-	t.Run("regex", func(t *testing.T) {
-		a := []byte("hi, Arthur")
-		b := "hi, .*"
+func TestEqualsRegex(t *testing.T) {
+	a := []byte("hi, Arthur")
+	b := "hi, .*"
 
-		if !equals(a, b) {
-			t.Error("equals not equal over regex")
-		}
-	})
+	if !equalsRegex(a, b) {
+		t.Errorf(`"%s" not equal "%s" over regex`, a, b)
+	}
 }
 
 func TestLogout(t *testing.T) {

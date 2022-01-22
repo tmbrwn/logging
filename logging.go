@@ -194,6 +194,7 @@ func printLog(tags []tag, msg string, debugEnabled bool) {
 func printLogJSON(tags []tag, msg string, debugEnabled bool) {
 	now := Clock.Now().Format(DateTimeFormat)
 
+	// marshal msg to make sure output is valid JSON
 	jsonMsg, err := json.Marshal(msg)
 	if err != nil {
 		jsonMsg = []byte("<?>")
@@ -217,14 +218,15 @@ func printLogJSON(tags []tag, msg string, debugEnabled bool) {
 
 	for _, t := range tags {
 		val := `"<?>"`
-		switch t.val.(type) {
-		case error:
-			val = fmt.Sprintf(`"%s"`, t.val)
-		default:
-			marshaled, err := json.Marshal(t.val)
-			if err == nil {
-				val = string(marshaled)
-			}
+
+		rawVal := t.val
+		if errVal, ok := t.val.(error); ok {
+			rawVal = errVal.Error()
+		}
+
+		jsonVal, err := json.Marshal(rawVal)
+		if err == nil {
+			val = string(jsonVal)
 		}
 
 		logComponents = append(logComponents, fmt.Sprintf(`"%s":%s`, t.key, val))
